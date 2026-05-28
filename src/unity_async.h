@@ -44,7 +44,7 @@
  *     5. Inside your cyclic switch(state) block:
  *          ASYNC_SUITE_TEARDOWN ... ASYNC_SUITE_TEARDOWN_DONE()
  *          ASYNC_SUITE_SETUP    ... ASYNC_SUITE_SETUP_DONE()
- *          ASYNC_TEST_CASE("name") ... ASYNC_TEST_SUCCESS()   (repeat)
+ *          ASYNC_TEST_CASE("name") ... ASYNC_TEST_DONE()   (repeat)
  *          ASYNC_SUITE_DONE()
  *
  *   Assertions: use standard TEST_ASSERT_* macros directly inside phases.
@@ -55,6 +55,11 @@
  *     ASYNC_STATE_VAR  - the state machine variable  (default: state)
  *     ASYNC_PHASE_VAR  - phase-within-case variable   (default: _asyncPhase)
  *     ASYNC_TICK_VAR   - global millisecond counter   (default: asyncTick)
+ *
+ *   Inside phases, use:
+ *     ASYNC_TEST_GO_TO(n)          - advance to phase n immediately
+ *     ASYNC_WAIT_FOR(cond, ms, n)  - wait for cond, advance to phase n, fail on timeout
+ *     ASYNC_TEST_TIMEOUT(ms)       - fail if the current phase exceeds ms ticks
  *
  *   Constraint: do not use __COUNTER__ elsewhere in the same translation unit.
  *   ASYNC_TEST_CASE relies on it for compile-time case-label assignment.
@@ -177,6 +182,14 @@
         break;                                                   \
     }
 
+/* Wait until cond is true, then advance to phase next.
+ * Fail the test if cond has not become true within ms ticks.
+ * Combines the common if-check + GO_TO + TIMEOUT pattern into one line.
+ * Must not be the sole body of an unbraced if/else. */
+#define ASYNC_WAIT_FOR(cond, ms, next)               \
+    if (cond) { ASYNC_TEST_GO_TO(next); }            \
+    ASYNC_TEST_TIMEOUT(ms)
+
 /* =========================================================================
  * State-machine API — global setup/teardown blocks
  *
@@ -228,7 +241,7 @@
  * ASYNC_TEST_PHASE opens a phase block (closing the previous one).
  * The block is skipped automatically if an assertion has already failed.
  *
- * ASYNC_TEST_SUCCESS closes the final phase, records a pass, and transitions
+ * ASYNC_TEST_DONE closes the final phase, records a pass, and transitions
  * to teardown.  It also provides a failure handler that fires when all phase
  * blocks were skipped due to an earlier assertion failure.
  * ========================================================================= */
@@ -246,7 +259,7 @@
     }                                                            \
     if (ASYNC_PHASE_VAR == (n) && !UNITY_ASYNC_TEST_FAILED()) {
 
-#define ASYNC_TEST_SUCCESS()                                     \
+#define ASYNC_TEST_DONE()                                     \
         UNITY_ASYNC_TEST_END();                                  \
         _asyncNextCaseState  = ASYNC_STATE_VAR + 1;              \
         ASYNC_STATE_VAR      = ASYNC_TEARDOWN_STATE;             \

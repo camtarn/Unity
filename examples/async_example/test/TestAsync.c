@@ -92,19 +92,12 @@ void sfcControlModeTest(int start, int cancel)
                 sfcEnable = 1;
 
             ASYNC_TEST_PHASE(2);
-                /* Wait for the SFC to acknowledge enable. */
-                if (sfcRunning)
-                {
-                    /* Expands to:
-                     *   _asyncPhase = 3; _asyncPhaseEntryTick = asyncTick; break;
-                     */
-                    ASYNC_TEST_GO_TO(3);
-                }
-                /* Expands to:
-                 *   if ((asyncTick - _asyncPhaseEntryTick) >= 200u) {
-                 *       TEST_FAIL_MESSAGE("Async timeout"); break; }
+                /* Wait for the SFC to acknowledge enable.
+                 * Expands to:
+                 *   if (sfcRunning) { _asyncPhase = 3; _asyncPhaseEntryTick = asyncTick; break; }
+                 *   if ((asyncTick - _asyncPhaseEntryTick) >= 200u) { TEST_FAIL_MESSAGE(...); break; }
                  */
-                ASYNC_TEST_TIMEOUT(200);
+                ASYNC_WAIT_FOR(sfcRunning, 200, 3);
 
             ASYNC_TEST_PHASE(3);
                 /* SFC is running — ready for tests. */
@@ -131,7 +124,7 @@ void sfcControlModeTest(int start, int cancel)
                  *   state = ASYNC_TEARDOWN_STATE; _asyncPhase = 1; ... break;
                  *   } if (UNITY_ASYNC_TEST_FAILED()) { ... } break;
                  */
-                ASYNC_TEST_SUCCESS();
+                ASYNC_TEST_DONE();
 
         /* ================================================================
          * Test case 1: output goes high within 500 ms of a trigger
@@ -151,7 +144,7 @@ void sfcControlModeTest(int start, int cancel)
 
             ASYNC_TEST_PHASE(3);
                 TEST_ASSERT_EQUAL_INT(1, sfcOutput);
-                ASYNC_TEST_SUCCESS();
+                ASYNC_TEST_DONE();
 
         /* ================================================================
          * Test case 2: multiple assertions in one phase — if the first
@@ -163,7 +156,7 @@ void sfcControlModeTest(int start, int cancel)
                 TEST_ASSERT_EQUAL_INT(1, sfcRunning);
                 TEST_ASSERT_EQUAL_INT(1, sfcOutput);
                 TEST_ASSERT_EQUAL_INT(0, sfcEnable); /* will fail if sfcEnable is 1 */
-                ASYNC_TEST_SUCCESS();
+                ASYNC_TEST_DONE();
 
         /* ----------------------------------------------------------------
          * Suite termination.
