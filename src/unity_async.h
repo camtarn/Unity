@@ -300,7 +300,6 @@
 
 #define ASYNC_SUITE_CANCEL()                                       \
         (void)UnityEnd();                                        \
-        ASYNC_CASE_VAR = ASYNC_DONE_STATE;                      \
-        break;                                                   \
+        ASYNC_CASE_VAR = ASYNC_DONE_STATE;
 
 #endif /* UNITY_ASYNC_H */
