@@ -18,11 +18,11 @@ static int  sfcRunning = 0;
 static int  sfcDone    = 0;
 static int  sfcOutput  = 0;
 
-/* State variable owned by the test function. */
-static int state = 0;
-
 /* prevStart tracks the rising edge of the start signal. */
 static int prevStart = 0;
+
+static int asyncTestCase = 0;
+static int asyncTestPhase = 1;
 
 /* ---------------------------------------------------------------------------
  * sfcControlModeTest — called once per PLC cycle
@@ -33,10 +33,9 @@ static int prevStart = 0;
 void sfcControlModeTest(int start, int cancel)
 {
     /* Declares:
-     *   static int          _asyncPhase      = 1;
      *   static int          _asyncNextCaseState = 0;
      *   static UNITY_UINT32 _asyncPhaseEntryTick = 0u;
-     *   static int          _asyncTestBegun  = 0;
+     *   static int          _asyncTestBegun     = 0;
      */
     ASYNC_DECLARE_SUITE_VARS();
 
@@ -46,8 +45,8 @@ void sfcControlModeTest(int start, int cancel)
         UnityBegin("sfcControlModeTest");
 
         /* Expands to:
-         *   state = ASYNC_TEARDOWN_STATE (0x7FFE);
-         *   _asyncPhase = 1; _asyncNextCaseState = 0; ...
+         *   asyncTestCase = ASYNC_SETUP_STATE (0x7FFD);
+         *   asyncTestPhase = 1; _asyncNextCaseState = 0; ...
          */
         ASYNC_SUITE_BEGIN();
 
@@ -57,7 +56,7 @@ void sfcControlModeTest(int start, int cancel)
         sfcOutput  = 0;
     }
 
-    switch (state)
+    switch (asyncTestCase)
     {
         /* ----------------------------------------------------------------
          * Global teardown — runs between every test case.
@@ -69,7 +68,7 @@ void sfcControlModeTest(int start, int cancel)
         ASYNC_SUITE_TEARDOWN;
 
             /* Expands to:
-             *   } if (_asyncPhase == 1 && !UNITY_ASYNC_TEST_FAILED()) {
+             *   } if (asyncTestPhase == 1 && !UNITY_ASYNC_TEST_FAILED()) {
              */
             ASYNC_TEST_PHASE(1);
                 sfcEnable  = 0;
@@ -78,7 +77,7 @@ void sfcControlModeTest(int start, int cancel)
                 sfcOutput  = 0;
 
             /* Expands to:
-             *   state = ASYNC_SETUP_STATE; _asyncPhase = 1; ... break;
+             *   asyncTestCase = ASYNC_SETUP_STATE; asyncTestPhase = 1; ... break;
              *   } break;
              */
             ASYNC_SUITE_TEARDOWN_DONE();
@@ -94,7 +93,7 @@ void sfcControlModeTest(int start, int cancel)
             ASYNC_TEST_PHASE(2);
                 /* Wait for the SFC to acknowledge enable.
                  * Expands to:
-                 *   if (sfcRunning) { _asyncPhase = 3; _asyncPhaseEntryTick = asyncTick; break; }
+                 *   if (sfcRunning) { asyncTestPhase = 3; _asyncPhaseEntryTick = asyncTick; break; }
                  *   if ((asyncTick - _asyncPhaseEntryTick) >= 200u) { TEST_FAIL_MESSAGE(...); break; }
                  */
                 ASYNC_WAIT_FOR(sfcRunning, 200, 3);
@@ -120,8 +119,8 @@ void sfcControlModeTest(int start, int cancel)
                 TEST_ASSERT_EQUAL_INT(0, sfcOutput);
 
                 /* Expands to:
-                 *   UNITY_ASYNC_TEST_END(); _asyncNextCaseState = state+1;
-                 *   state = ASYNC_TEARDOWN_STATE; _asyncPhase = 1; ... break;
+                 *   UNITY_ASYNC_TEST_END(); _asyncNextCaseState = asyncTestCase+1;
+                 *   asyncTestCase = ASYNC_TEARDOWN_STATE; asyncTestPhase = 1; ... break;
                  *   } if (UNITY_ASYNC_TEST_FAILED()) { ... } break;
                  */
                 ASYNC_TEST_DONE();
@@ -161,7 +160,7 @@ void sfcControlModeTest(int start, int cancel)
         /* ----------------------------------------------------------------
          * Suite termination.
          * Expands to:
-         *   default: (void)UnityEnd(); state = ASYNC_DONE_STATE; break;
+         *   default: (void)UnityEnd(); asyncTestCase = ASYNC_DONE_STATE; break;
          *   case ASYNC_DONE_STATE: break;
          * ---------------------------------------------------------------- */
         ASYNC_SUITE_DONE();

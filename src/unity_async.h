@@ -41,7 +41,7 @@
  *     3. Declare framework variables at the top of your test function:
  *          ASYNC_DECLARE_SUITE_VARS();
  *     4. On your start edge, call ASYNC_SUITE_BEGIN().
- *     5. Inside your cyclic switch(state) block:
+ *     5. Inside your cyclic switch(testCase) block:
  *          ASYNC_SUITE_TEARDOWN ... ASYNC_SUITE_TEARDOWN_DONE()
  *          ASYNC_SUITE_SETUP    ... ASYNC_SUITE_SETUP_DONE()
  *          ASYNC_TEST_CASE("name") ... ASYNC_TEST_DONE()   (repeat)
@@ -49,12 +49,12 @@
  *
  *   Assertions: use standard TEST_ASSERT_* macros directly inside phases.
  *   After the first failure Unity silently skips subsequent assertions
- *   (RETURN_IF_FAIL_OR_IGNORE); no wrapper macros are needed.
+ *   (RETURN_IF_FAIL_OR_IGNORE) until the next test case begins.
  *
  *   Variable name overrides (define before including this header):
- *     ASYNC_STATE_VAR  - the state machine variable  (default: state)
- *     ASYNC_PHASE_VAR  - phase-within-case variable   (default: _asyncPhase)
- *     ASYNC_TICK_VAR   - global millisecond counter   (default: asyncTick)
+ *     ASYNC_CASE_VAR - test case variable (default: asyncTestCase)
+ *     ASYNC_PHASE_VAR - phase-within-case variable (default: asyncTestPhase)
+ *     ASYNC_TICK_VAR - global millisecond counter (default: asyncTick)
  *
  *   Inside phases, use:
  *     ASYNC_TEST_GO_TO(n)          - advance to phase n immediately
@@ -104,20 +104,20 @@
  * State-machine API — configurable names
  * ========================================================================= */
 
-#ifndef ASYNC_STATE_VAR
-#define ASYNC_STATE_VAR  state
+#ifndef ASYNC_CASE_VAR
+#define ASYNC_CASE_VAR asyncTestCase
 #endif
 
 #ifndef ASYNC_PHASE_VAR
-#define ASYNC_PHASE_VAR  _asyncPhase
+#define ASYNC_PHASE_VAR asyncTestPhase
 #endif
 
 #ifndef ASYNC_TICK_VAR
-#define ASYNC_TICK_VAR   asyncTick
+#define ASYNC_TICK_VAR asyncTick
 #endif
 
 /* =========================================================================
- * State-machine API — reserved state constants
+ * State-machine API — reserved state constants used for asyncTestCase
  *
  * These values are well above any realistic __COUNTER__-based test case
  * number.  Do not use them as explicit state values in your own code.
@@ -131,12 +131,12 @@
  * State-machine API — framework variable declarations
  *
  * Place once at the top of the test function (before the switch).
- * ASYNC_STATE_VAR is owned by the caller and is not declared here.
+ * ASYNC_CASE_VAR and ASYNC_PHASE_VAR are owned by the caller and must be
+ * declared as 32 bit ints.
  * ASYNC_TICK_VAR must be a globally accessible unsigned 32-bit counter.
  * ========================================================================= */
 
 #define ASYNC_DECLARE_SUITE_VARS()                               \
-    static int          ASYNC_PHASE_VAR      = 1;               \
     static int          _asyncNextCaseState  = 0;               \
     static UNITY_UINT32 _asyncPhaseEntryTick = 0u;              \
     static int          _asyncTestBegun      = 0
@@ -151,7 +151,7 @@
 
 #define ASYNC_SUITE_BEGIN()                                      \
     do {                                                         \
-        ASYNC_STATE_VAR      = ASYNC_TEARDOWN_STATE;             \
+        ASYNC_CASE_VAR      = ASYNC_SETUP_STATE;                 \
         ASYNC_PHASE_VAR      = 1;                                \
         _asyncNextCaseState  = 0;                                \
         _asyncPhaseEntryTick = 0u;                               \
@@ -210,7 +210,7 @@
         if (0) {
 
 #define ASYNC_SUITE_TEARDOWN_DONE()                              \
-        ASYNC_STATE_VAR      = ASYNC_SETUP_STATE;                \
+        ASYNC_CASE_VAR      = ASYNC_SETUP_STATE;                \
         ASYNC_PHASE_VAR      = 1;                                \
         _asyncPhaseEntryTick = (UNITY_UINT32)(ASYNC_TICK_VAR);   \
         break;                                                   \
@@ -224,7 +224,7 @@
         if (0) {
 
 #define ASYNC_SUITE_SETUP_DONE()                                 \
-        ASYNC_STATE_VAR      = _asyncNextCaseState;              \
+        ASYNC_CASE_VAR      = _asyncNextCaseState;              \
         ASYNC_PHASE_VAR      = 1;                                \
         _asyncPhaseEntryTick = (UNITY_UINT32)(ASYNC_TICK_VAR);   \
         _asyncTestBegun      = 0;                                \
@@ -261,8 +261,8 @@
 
 #define ASYNC_TEST_DONE()                                     \
         UNITY_ASYNC_TEST_END();                                  \
-        _asyncNextCaseState  = ASYNC_STATE_VAR + 1;              \
-        ASYNC_STATE_VAR      = ASYNC_TEARDOWN_STATE;             \
+        _asyncNextCaseState  = ASYNC_CASE_VAR + 1;              \
+        ASYNC_CASE_VAR      = ASYNC_TEARDOWN_STATE;             \
         ASYNC_PHASE_VAR      = 1;                                \
         _asyncPhaseEntryTick = (UNITY_UINT32)(ASYNC_TICK_VAR);   \
         _asyncTestBegun      = 0;                                \
@@ -270,8 +270,8 @@
     }                                                            \
     if (UNITY_ASYNC_TEST_FAILED()) {                             \
         UNITY_ASYNC_TEST_END();                                  \
-        _asyncNextCaseState  = ASYNC_STATE_VAR + 1;              \
-        ASYNC_STATE_VAR      = ASYNC_TEARDOWN_STATE;             \
+        _asyncNextCaseState  = ASYNC_CASE_VAR + 1;              \
+        ASYNC_CASE_VAR      = ASYNC_TEARDOWN_STATE;             \
         ASYNC_PHASE_VAR      = 1;                                \
         _asyncPhaseEntryTick = (UNITY_UINT32)(ASYNC_TICK_VAR);   \
         _asyncTestBegun      = 0;                                \
@@ -288,7 +288,7 @@
 #define ASYNC_SUITE_DONE()                                       \
     default:                                                     \
         (void)UnityEnd();                                        \
-        ASYNC_STATE_VAR = ASYNC_DONE_STATE;                      \
+        ASYNC_CASE_VAR = ASYNC_DONE_STATE;                      \
         break;                                                   \
     case ASYNC_DONE_STATE:                                       \
         break
