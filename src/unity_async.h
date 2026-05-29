@@ -46,6 +46,7 @@
  *          ASYNC_SUITE_SETUP    ... ASYNC_SUITE_SETUP_DONE()
  *          ASYNC_TEST_CASE("name") ... ASYNC_TEST_DONE()   (repeat)
  *          ASYNC_SUITE_DONE()
+ *     6. If using cancellation, on your cancel edge, call ASYNC_SUITE_CANCEL()
  *
  *   Assertions: use standard TEST_ASSERT_* macros directly inside phases.
  *   After the first failure Unity silently skips subsequent assertions
@@ -292,5 +293,14 @@
         break;                                                   \
     case ASYNC_DONE_STATE:                                       \
         break
+
+/* =========================================================================
+ * State-machine API — suite cancellation
+ * ========================================================================= */
+
+#define ASYNC_SUITE_CANCEL()                                       \
+        (void)UnityEnd();                                        \
+        ASYNC_CASE_VAR = ASYNC_DONE_STATE;                      \
+        break;                                                   \
 
 #endif /* UNITY_ASYNC_H */
